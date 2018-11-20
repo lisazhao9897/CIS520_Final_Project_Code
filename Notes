@@ -1,0 +1,10 @@
+# Dimensionality reduction 
+1. random feature selection 
+n = 1019 
+# demographics/ SES features = 21 
+# topics 2000 
+
+2. partial dependence plot 
+
+
+# Take off noisy features 
