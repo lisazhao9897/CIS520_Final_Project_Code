@@ -13,39 +13,35 @@ n = size(train,1);
 
 nan_topics = zeros(1, 2000); 
 for row = 1:2000 
-    nan_topics(row) = max(ismissing(topics(row,:))); 
+    nan_topics(row) = max(ismissing(topics(row,:))); % with nan (1) 
 end 
 
-topics_with_nan = find(nan_topics); % 458 
-
-% keep the above 15% topics
+% The above 10% topics
 sums = sum(topic_features,1); 
-freq_topics = sums>0.15;
+freq_topics = sums < 0.1; 
+sum(freq_topics) % 419 topics (1) have sum frequency < 0.05 over all counties 
 
-% remove the with nan topics 
-freq_topics(:,topics_with_nan) = 0; 
+% Remove the topics with nan and < 0.10 
+removed_topics = freq_topics + nan_topics; 
+removed_topics(removed_topics ~= 2) = 0; % = 2 if both with nan and sum frequency < 0.05
+removed_topics(removed_topics == 2) = 1; % 1 indicates to be removed topics 
+sum(removed_topics) % remove 139 topics 
 
-topics_keep = find(freq_topics == 1); 
+topics_keep = find(removed_topics == 0); 
+topics_inputs = topic_features(:, topics_keep); 
 
-topics_keep = topics_keep + 21; 
-all_kept_features = [colind topics_keep]; 
+all_kept_features = [colind (topics_keep + 21)]; 
 
 cd '/Users/lisazhao/Desktop/CIS 520/project_kit'; 
-csvwrite('all_kept_features.csv',all_kept_features); 
+csvwrite('all_kept_features.csv',all_kept_features);
+csvwrite('demo_kept_features.csv',colind);
+csvwrite('topics_kept_features.csv',(topics_keep + 21));
 
-train_inputs = train_inputs(:, all_kept_features); 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% CV 
+train_inputs = train_inputs(:, all_kept_features); % left with 1881 total features - 1861 topics + 20 demo 
 
-% returns the indices cvIndices after applying cvMethod on N observations 
-% using M as the selection parameter.
-% M = 20; 
-% cvIndices = crossvalind('Kfold',n,M); 
 
-% cv_train_inputs = resc_redc_X(cvIndices ~= 1, :); 
-% cv_train_labels = train_labels(cvIndices ~= 1, :); 
-% test_inputs = resc_redc_X(cvIndices == 1, :); 
-% true_labels = train_labels(cvIndices == 1, :); 
+
+
 
 % KNN Regression 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -83,6 +79,8 @@ for i = 1:n % loop thru each row
         sqrt(sum((train_inputs(i,21:size(train_inputs,2)) - train_inputs(j,21:size(train_inputs,2))) .^2)); 
    end                      
 end 
+
+
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

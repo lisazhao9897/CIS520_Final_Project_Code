@@ -1,37 +1,59 @@
 function pred_labels=predict_labels(train_inputs,train_labels,test_inputs)
 n = size(train_inputs,1); 
 m = size(test_inputs, 1); 
-sample = min(n, m); 
+% sample = min(n, m); 
 
 % DIMENSIONALITY REDUCTION 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% step 1 
 % all_kept_features = csvread('all_kept_features.csv'); 
+topics_kept = csvread('topics_kept_features.csv'); 
+demo_kept = csvread('demo_kept_features.csv'); 
 
-% train_inputs = train_inputs(:, all_kept_features); 
-% test_inputs = test_inputs(:, all_kept_features); 
+topics_inputs_train = train_inputs(:, topics_kept); 
+topics_inputs_test = test_inputs(:, topics_kept); 
 
-% take off the lin dep demo col 
-demo_ses_features_ = train_inputs(:,1:21); 
+all_topics = vertcat(topics_inputs_train, topics_inputs_test); 
 
-[~,colind] = rref(demo_ses_features_);
+demo_inputs_train = train_inputs(:, demo_kept); 
+demo_inputs_test = test_inputs(:, demo_kept); 
 
-train_demo = train_inputs(:, colind); 
-test_demo = test_inputs(:, colind); 
 
-train_topics = train_inputs(:, 22:2021); 
-test_topics = test_inputs(:, 22:2021); 
+% step 2 - PCA feature number reduction 
+% mean center all_topics 
+mu_all_topics = zeros(1, size(all_topics,2)); 
+for i = 1:size(all_topics,2)
+    mu_all_topics(i) = mean(all_topics(:,i)); 
+end 
 
-all_topics = vertcat(train_topics, test_topics); 
+mc_all_topics = all_topics - repmat(mu_all_topics,size(all_topics, 1),1); 
+
+[~,S,~] = svd(mc_all_topics); 
+dim_S = min(size(S,1), size(S,2)); 
+
+square_matrix = S(1:dim_S,1:dim_S); 
+
+eigenvals = square_matrix * square_matrix; 
+summ = trace(eigenvals); 
+sum_eigen_value = 0; 
+variance_explained = zeros(dim_S,1); 
+for i = 1:dim_S 
+    sum_eigen_value = sum_eigen_value + eigenvals(i,i); 
+    percent_var_explained = 100*sum_eigen_value/summ; 
+    variance_explained(i) = percent_var_explained; 
+end 
+
+pc_num = sum(variance_explained < 99.9); % number of PC used for all_topics 
 
 [~,score,~,~,~,~] = pca(all_topics); 
 
-PC_topics = score(:, 1:(sample-size(colind,2))); 
+PC_topics = score(:, 1:pc_num); 
 
 train_topics = PC_topics(1:n, :); 
 test_topics = PC_topics((n+1):(n+m), :); 
 
-train_inputs = [train_demo, train_topics]; 
-test_inputs = [test_demo, test_topics];                                     
+train_inputs = horzcat(demo_inputs_train, train_topics); 
+test_inputs = horzcat(demo_inputs_test, test_topics);                                     
 
 % KNN Regression 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
